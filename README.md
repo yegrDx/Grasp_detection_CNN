@@ -21,7 +21,7 @@ python train.py --data <path_to_your_data> --epochs <num_of_epochs> --bs <batch_
 
 ### Examle for train:
 ```bash
-python train.py   --data ./datasets/cornell_dataset   --epochs 30   --bs 16   --lr 1e-3   --out ./checkpoints   --device cuda
+python train.py --data ./datasets/cornell_dataset --epochs 30 --bs 16 --lr 1e-3 --out ./checkpoints --device cuda
 ```
 
 ---
