@@ -26,7 +26,7 @@ python train.py   --data ./datasets/cornell_dataset   --epochs 30   --bs 16   --
 
 ---
 
-# Example for inference on one depth card
+### Example for inference on one depth card
 
 ```bash
 python inference.py --weights ./checkpoints/ggcnn_best.pt --depth ./datasets/cornell_dataset/07/pcd0700d.tiff --out grasp_vis.png --device cpu
