@@ -1,6 +1,4 @@
 
-# inference.py
-# Run a trained GGCNN on a single depth PNG and save visualization & grasp result (argmax on Q)
 import os, argparse, math
 import numpy as np
 from PIL import Image
@@ -9,7 +7,7 @@ from ggcnn_model import GGCNN
 from dataset_cornell import depth_png_to_meters
 
 def postprocess(pred, depth_img):
-    # pred: dict of maps (1,1,H,W). Return best grasp (y,x, angle, width_px, quality)
+
     q = pred['pos'][0,0].cpu().numpy()
     cos = pred['cos'][0,0].cpu().numpy()
     sin = pred['sin'][0,0].cpu().numpy()
@@ -57,13 +55,13 @@ def main():
 
     depth_img = Image.open(args.depth)
     depth = depth_png_to_meters(depth_img)
-    # center crop/resize to model size
+
     H,W = depth.shape
     s = min(H,W)
     top = (H - s)//2; left = (W - s)//2
     crop = depth[top:top+s, left:left+s]
     crop = np.array(Image.fromarray(crop).resize((args.size,args.size), Image.NEAREST), dtype=np.float32)
-    # normalize same as training
+
     m = crop.mean(); sd = crop.std() + 1e-6
     crop_n = (crop - m) / sd
     x = torch.from_numpy(crop_n[None,None,...]).float().to(device)
