@@ -1,6 +1,3 @@
-# ggcnn_model.py
-# GG-CNN: архитектура как в оригинальном репозитории (3 Conv + 3 ConvTranspose).
-# Возвращаем dict, совместимый с train.py; лосс — MSE, как в оригинале.
 
 from typing import Dict
 import torch
