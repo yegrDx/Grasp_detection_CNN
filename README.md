@@ -1,5 +1,5 @@
 This model is trained on [Cornell Grasp Dataset](https://www.kaggle.com/datasets/oneoneliu/cornell-grasp).  
-The model predicts the position, angle and width for grasping object.
+The model predicts the position, angle and width for grasping an object.
 
 ---
 Installation
