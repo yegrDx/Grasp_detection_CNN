@@ -1,10 +1,4 @@
 
-# dataset_cornell.py
-# Lightweight Cornell dataset wrapper (depth-only by default), matching common GGCNN preprocessing.
-# Directory layout: /path/to/Cornell/{01,02,...}/
-# Each grasp file is *_cpos.txt, with corresponding depth: *-depth.png  (as in standard Cornell release preprocessed to PNG)
-# If your depth files are .png created by generate_cornell_depth.py (uint16 millimeters), this loader normalizes to meters.
-
 from typing import Tuple, Dict, List
 import os, glob
 import numpy as np
@@ -15,11 +9,11 @@ import random
 import math
 
 def read_grasp_file(txt_path: str) -> np.ndarray:
-    # Each grasp rect consists of 4 points (x,y), 4 lines => 8 numbers per rectangle; many rectangles per file.
+   
     rects = []
     with open(txt_path, 'r') as f:
         lines = [l.strip() for l in f.readlines() if l.strip()]
-    # Group per 4 lines
+   
     for i in range(0, len(lines), 4):
         pts = []
         for j in range(4):
@@ -33,7 +27,7 @@ def depth_png_to_meters(img: Image.Image) -> np.ndarray:
     # If uint16 in millimeters -> meters
     if a.dtype == np.uint16 or a.max() > 255:
         return a / 1000.0
-    # If already 8-bit normalized, scale to [0,1] meters range proxy
+    
     a = a / 255.0
     return a
 
@@ -44,7 +38,7 @@ def crop_square(arr: np.ndarray, size: int, top: int, left: int) -> np.ndarray:
     return arr[t:t+size, l:l+size]
 
 def rotate_point(cx, cy, x, y, angle):
-    # Rotate (x,y) around center (cx,cy) by angle (rad)
+    
     s, c = math.sin(angle), math.cos(angle)
     x -= cx; y -= cy
     x_new = x*c - y*s
@@ -70,11 +64,11 @@ class CornellGraspDataset(Dataset):
         self.include_rgb = include_rgb
         random.seed(seed)
 
-        # искать все depth-карты
+        
         depth_files = sorted(glob.glob(os.path.join(root, "*", "*d.tiff")))
         self.items = []
         for d in depth_files:
-            base = os.path.splitext(d)[0]  # .../pcd0100d
+            base = os.path.splitext(d)[0]  
             txt = base[:-1] + "cpos.txt" if base.endswith("d") else base + "cpos.txt"
             if not os.path.exists(txt):
                 continue
@@ -99,14 +93,14 @@ class CornellGraspDataset(Dataset):
         depth = Image.open(depth_path)
         depth = depth_png_to_meters(depth)
         H, W = depth.shape
-        # Center crop params from grasp rectangles center
-        rects = read_grasp_file(grasp_path)  # (N,4,2)
+        
+        rects = read_grasp_file(grasp_path)  
         if rects.shape[0] == 0:
             cx, cy = W/2, H/2
         else:
             cx = rects[:,:,0].mean()
             cy = rects[:,:,1].mean()
-        # Data aug
+        
         angle = random.uniform(-math.pi/2, math.pi/2) if self.random_rotate else 0.0
         zoom = 1.0 + random.uniform(-0.2, 0.2) if self.random_zoom else 1.0
         size = int(self.output_size / zoom)
@@ -114,50 +108,50 @@ class CornellGraspDataset(Dataset):
         left = int(max(0, cx - size/2))
         d_crop = crop_square(depth, size, top, left)
         d_crop = np.array(Image.fromarray(d_crop).resize((self.output_size, self.output_size), Image.NEAREST))
-        # Rotate around center
+        
         d_img = Image.fromarray(d_crop)
         d_img = d_img.rotate(angle * 180.0 / math.pi, resample=Image.NEAREST)
         d = np.array(d_img, dtype=np.float32)
         d = np.nan_to_num(d, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # Targets: quality map Q, cos(2θ), sin(2θ), width (px). Here we rasterize rectangles into masks and angle/width maps.
+        
         Q = np.zeros_like(d, dtype=np.float32)
         COS = np.zeros_like(d, dtype=np.float32)
         SIN = np.zeros_like(d, dtype=np.float32)
         W = np.zeros_like(d, dtype=np.float32)
-        # Apply same transform to rectangles
+        
         for rect in rects:
-            # shift crop
+            
             rc = rect.copy()
             rc[:,0] -= left; rc[:,1] -= top
-            # scale to output
+            
             sx = self.output_size / size; sy = self.output_size / size
             rc[:,0] *= sx; rc[:,1] *= sy
-            # rotate around center
+            
             cx_out, cy_out = self.output_size/2, self.output_size/2
             for k in range(4):
                 rc[k,0], rc[k,1] = rotate_point(cx_out, cy_out, rc[k,0], rc[k,1], angle)
-            # center line for angle + width
+            
             p0, p1, p2, p3 = rc
-            # grasp center approx
+            
             gcx = rc[:,0].mean(); gcy = rc[:,1].mean()
-            # grasp axis vector (p1->p2) (Cornell order varies; use top edges)
+           
             v = ((p1+p2)/2) - ((p0+p3)/2)
             theta = math.atan2(v[1], v[0])  # radians
-            # width approx as distance between (p0+p1)/2 and (p2+p3)/2
+         
             w_vec = ((p0+p1)/2) - ((p2+p3)/2)
             width_px = np.linalg.norm(w_vec)
-            # mask fill
+            
             mask = polygon_to_mask(rc, (self.output_size, self.output_size))
             Q[mask > 0.5] = 1.0
             COS[mask > 0.5] = math.cos(2*theta)
             SIN[mask > 0.5] = math.sin(2*theta)
             W[mask > 0.5] = width_px
 
-        # Normalize depth to zero mean / unit variance (robust)
+       
         m = np.mean(d); s = np.std(d) + 1e-6
         d = (d - m) / s
-        d = d[None, ...]  # (1,H,W)
+        d = d[None, ...]  
 
         sample = {
             'x': torch.from_numpy(d).float(),
